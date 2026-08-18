@@ -1,0 +1,364 @@
+import { useState, useCallback, useEffect, useRef } from "react";
+import { AppointmentRepository } from "../api/appointments.repository";
+import { toast } from "sonner";
+import { useAuth } from "../../../providers/AuthProvider";
+
+// ESTADOS DE CARGA ESPECÍFICOS (mejor UX que un genérico "loading")
+const STATUS = {
+  IDLE: "idle",
+  CREATING: "creating",
+  FETCHING: "fetching",
+  UPDATING: "updating",
+  ERROR: "error",
+};
+
+export function useAppointments() {
+  const [appointments, setAppointments] = useState([]);
+  const [status, setStatus] = useState(STATUS.IDLE);
+  const [error, setError] = useState(null);
+  const [searchFilters, setSearchFilters] = useState({
+    query: "",
+    documentNumber: "",
+    fullName: "",
+    dateFrom: "",
+    dateTo: "",
+    status: "",
+  });
+  const { user, profile, isAprendiz } = useAuth();
+  const debounceRef = useRef(null);
+
+  // FETCH: Obtener citas según el rol automáticamente
+  const fetchAppointments = useCallback(
+    async (filters = {}) => {
+      setStatus(STATUS.FETCHING);
+      setError(null);
+
+      try {
+        const roleFilters = isAprendiz()
+          ? { userId: user.id }
+          : { dependencyId: profile.dependency_id };
+
+        const data = await AppointmentRepository.fetch({
+          ...roleFilters,
+          ...filters,
+        });
+        setAppointments(data);
+        return data;
+      } catch (err) {
+        setError(err.message);
+        toast.error("Error cargando citas");
+        return [];
+      } finally {
+        setStatus(STATUS.IDLE);
+      }
+    },
+    [user, profile, isAprendiz],
+  );
+
+  // FETCH SILENCIOSO: Para cambios de filtro sin mostrar loading full-screen
+  const fetchAppointmentsSilent = useCallback(
+    async (filters = {}) => {
+      setError(null);
+
+      try {
+        const roleFilters = isAprendiz()
+          ? { userId: user.id }
+          : { dependencyId: profile.dependency_id };
+
+        const data = await AppointmentRepository.fetch({
+          ...roleFilters,
+          ...filters,
+        });
+        setAppointments(data);
+        return data;
+      } catch (err) {
+        setError(err.message);
+        toast.error("Error cargando citas");
+        return [];
+      }
+    },
+    [user, profile, isAprendiz],
+  );
+
+  // FETCH CON BÚSQUEDA: Combina filtros de tabs + búsqueda del sidebar
+  const fetchWithSearch = useCallback(
+    async (tabFilters = {}) => {
+      setError(null);
+
+      try {
+        const roleFilters = isAprendiz()
+          ? { userId: user.id }
+          : { dependencyId: profile.dependency_id };
+
+        // Combinar filtros de tabs (status) + búsqueda (query, documentNumber, fullName, dateFrom, dateTo)
+        const combinedFilters = {
+          ...roleFilters,
+          ...tabFilters,
+          ...searchFilters,
+        };
+
+        const data = await AppointmentRepository.fetch(combinedFilters);
+        setAppointments(data);
+        return data;
+      } catch (err) {
+        setError(err.message);
+        toast.error("Error cargando citas");
+        return [];
+      }
+    },
+    [user, profile, isAprendiz, searchFilters],
+  );
+
+  // Actualizar filtros de búsqueda con debounce
+  const updateSearchFilters = useCallback((newFilters) => {
+    setSearchFilters((prev) => ({ ...prev, ...newFilters }));
+    
+    // Debounce para búsqueda de texto
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    
+    debounceRef.current = setTimeout(() => {
+      fetchWithSearch();
+    }, 300);
+  }, [fetchWithSearch]);
+
+  // Limpiar filtros de búsqueda
+  const clearSearchFilters = useCallback(() => {
+    setSearchFilters({
+      query: "",
+      documentNumber: "",
+      fullName: "",
+      dateFrom: "",
+      dateTo: "",
+      status: "",
+    });
+    fetchWithSearch();
+  }, [fetchWithSearch]);
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
+  // FETCH POR PROFESIONAL: Citas de la dependencia del profesional
+  const fetchMyAppointments = useCallback(async (filters = {}) => {
+    if (!profile?.dependency_id) return [];
+    setError(null);
+
+    try {
+      const data = await AppointmentRepository.fetch({
+        dependencyId: profile.dependency_id,
+        ...filters,
+      });
+      setAppointments(data);
+      return data;
+    } catch (err) {
+      setError(err.message);
+      toast.error("Error cargando citas");
+      return [];
+    }
+  }, [profile]);
+
+  // FETCH HISTORIAL APRENDIZ: Citas previas de un aprendiz en una dependencia
+  const fetchApprenticeHistory = useCallback(async (userId, dependencyId) => {
+    try {
+      const data = await AppointmentRepository.fetchApprenticeHistory(userId, dependencyId);
+      return data;
+    } catch {
+      toast.error("Error cargando historial");
+      return [];
+    }
+  }, []);
+
+  // CREATE: Crear cita con validaciones de negocio
+  const createAppointment = async (formData) => {
+    setStatus(STATUS.CREATING);
+
+    try {
+      if (isAprendiz()) {
+        const pendingCount = await AppointmentRepository.countPending(user.id);
+        if (pendingCount >= 2) {
+          throw new Error(
+            "Solo puedes tener 2 citas pendientes. Espera a que se confirme o cancela una.",
+          );
+        }
+      }
+
+      const isAvailable = await AppointmentRepository.checkAvailability(
+        formData.dependency_id,
+        formData.scheduled_date,
+        formData.scheduled_time,
+      );
+
+      if (!isAvailable) {
+        throw new Error("Este horario ya está ocupado. Selecciona otro.");
+      }
+
+      const newAppointment = await AppointmentRepository.create({
+        ...formData,
+        user_id: user.id,
+        status: "pending",
+      });
+
+      setAppointments((prev) => [...prev, newAppointment]);
+      toast.success("Cita agendada correctamente");
+      return { success: true, data: newAppointment };
+    } catch (err) {
+      setError(err.message);
+      toast.error(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setStatus(STATUS.IDLE);
+    }
+  };
+
+  // UPDATE: Actualizar cita completa (estado + campos específicos)
+  const updateAppointment = async (appointmentId, updates) => {
+    setStatus(STATUS.UPDATING);
+
+    try {
+      await AppointmentRepository.update(appointmentId, updates);
+
+      setAppointments((prev) =>
+        prev.map((app) =>
+          app.id === appointmentId ? { ...app, ...updates } : app
+        ),
+      );
+
+      toast.success("Cita actualizada");
+      return { success: true };
+    } catch (err) {
+      console.error("Error en updateAppointment:", err);
+      toast.error(err.message || "Error actualizando cita");
+      return { success: false, error: err.message };
+    } finally {
+      setStatus(STATUS.IDLE);
+    }
+  };
+
+  // UPDATE STATUS: Cambiar estado (confirmar, completar, cancelar)
+  const updateStatus = async (appointmentId, newStatus, notes = null) => {
+    setStatus(STATUS.UPDATING);
+
+    try {
+      const updates = { status: newStatus };
+      if (notes) updates.notes = notes;
+
+      await AppointmentRepository.update(appointmentId, updates);
+
+      const roleFilters = isAprendiz()
+        ? { userId: user.id }
+        : { dependencyId: profile?.dependency_id };
+
+      if (roleFilters) {
+        const freshData = await AppointmentRepository.fetch(roleFilters);
+        setAppointments(freshData);
+      } else {
+        setAppointments((prev) =>
+          prev.map((app) =>
+            app.id === appointmentId ? { ...app, ...updates } : app
+          ),
+        );
+      }
+
+      toast.success(
+        `Cita ${newStatus === "confirmed" ? "confirmada" : "actualizada"}`,
+      );
+      return { success: true };
+    } catch (err) {
+      console.error("Error en updateStatus:", err);
+      toast.error(err.message || "Error actualizando cita");
+      return { success: false, error: err.message };
+    } finally {
+      setStatus(STATUS.IDLE);
+    }
+  };
+
+  // CANCEL: Cancelar cita (solo si está pending)
+  const cancelAppointment = async (appointmentId) => {
+    const appointment = appointments.find((a) => a.id === appointmentId);
+
+    if (appointment.status !== "pending") {
+      toast.error("Solo puedes cancelar citas pendientes");
+      return { success: false };
+    }
+
+    return updateStatus(appointmentId, "cancelled");
+  };
+
+  // DELETE: Eliminar una cita permanentemente
+  const deleteAppointment = async (appointmentId) => {
+    setStatus(STATUS.UPDATING);
+
+    try {
+      await AppointmentRepository.remove(appointmentId);
+
+      const roleFilters = isAprendiz()
+        ? { userId: user.id }
+        : { dependencyId: profile?.dependency_id };
+
+      if (roleFilters) {
+        const freshData = await AppointmentRepository.fetch(roleFilters);
+        setAppointments(freshData);
+      } else {
+        setAppointments((prev) => prev.filter((app) => app.id !== appointmentId));
+      }
+
+      toast.success("Cita eliminada");
+      return { success: true };
+    } catch (err) {
+      console.error("Error en deleteAppointment:", err);
+      toast.error(err.message || "Error eliminando cita");
+      return { success: false, error: err.message };
+    } finally {
+      setStatus(STATUS.IDLE);
+    }
+  };
+
+  // TAKE APPOINTMENT: Profesional se auto-asigna una cita
+  const takeAppointment = async (appointmentId) => {
+    setStatus(STATUS.UPDATING);
+
+    try {
+      const updatedAppointment = await AppointmentRepository.takeAppointment(appointmentId, user.id);
+
+      setAppointments((prev) =>
+        prev.map((app) =>
+          app.id === appointmentId ? { ...app, ...updatedAppointment } : app
+        ),
+      );
+
+      toast.success("Cita asignada correctamente");
+      return { success: true };
+    } catch (err) {
+      console.error("Error en takeAppointment:", err);
+      toast.error(err.message || "Error asignando cita");
+      return { success: false, error: err.message };
+    } finally {
+      setStatus(STATUS.IDLE);
+    }
+  };
+
+  return {
+    appointments,
+    status,
+    error,
+    isLoading: status === STATUS.FETCHING,
+    isCreating: status === STATUS.CREATING,
+    fetchAppointments,
+    fetchAppointmentsSilent,
+    fetchMyAppointments,
+    fetchApprenticeHistory,
+    createAppointment,
+    updateAppointment,
+    updateStatus,
+    cancelAppointment,
+    deleteAppointment,
+    takeAppointment,
+    searchFilters,
+    updateSearchFilters,
+    clearSearchFilters,
+    fetchWithSearch,
+  };
+}
