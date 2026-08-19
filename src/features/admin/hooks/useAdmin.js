@@ -193,6 +193,17 @@ export function useAdmin() {
         }
     };
 
+    const updateAppointment = async (appointmentId, updates) => {
+        try {
+            await AdminRepository.updateAppointment(appointmentId, updates, user.id);
+            toast.success("Cita actualizada");
+            return true;
+        } catch (err) {
+            toast.error(err.message || "Error actualizando cita");
+            return false;
+        }
+    };
+
     const confirmAppointment = async (appointmentId) => {
         try {
             await AdminRepository.updateAppointment(appointmentId, { status: "confirmed" }, user.id);
@@ -376,6 +387,7 @@ export function useAdmin() {
         fetchAllAppointments,
         reassignAppointment,
         cancelAppointment,
+        updateAppointment,
         confirmAppointment,
         deleteAppointment,
         deleteAllAppointments,

@@ -7,10 +7,10 @@ const STATUS_CONFIG = {
   confirmed: { label: "Confirmada",  className: "badge--confirmed" },
   completed: { label: "Completada",  className: "badge--completed" },
   cancelled: { label: "Cancelada",   className: "badge--cancelled" },
-  no_show:   { label: "No asistió",  className: "badge--no-show" },
+  no_show:   { label: "No asisti\u00f3",  className: "badge--no-show" },
 };
 
-export function AppointmentCard({ appointment, onCancel, isAprendiz }) {
+export function AppointmentCard({ appointment, onCancel, onDelete, isAprendiz }) {
   const { dependencies, scheduled_date, scheduled_time, status, reason, profiles } = appointment;
   const config = STATUS_CONFIG[status];
 
@@ -59,12 +59,20 @@ export function AppointmentCard({ appointment, onCancel, isAprendiz }) {
         )}
       </div>
 
-      {isAprendiz && status === "pending" && (
+      {isAprendiz && (
         <div className="card__footer">
-          <button onClick={onCancel} className="btn btn-danger btn--sm">
-            <XCircle size={14} aria-hidden="true" />
-            Cancelar
-          </button>
+          {status === "pending" && onCancel && (
+            <button onClick={onCancel} className="btn btn-danger btn--sm">
+              <XCircle size={14} aria-hidden="true" />
+              Cancelar
+            </button>
+          )}
+          {status !== "pending" && onDelete && (
+            <button onClick={onDelete} className="btn btn-danger btn--sm">
+              <XCircle size={14} aria-hidden="true" />
+              Eliminar historial
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -299,51 +299,26 @@ export class AdminRepository {
         return { appointments: data, total: count, page, totalPages: Math.ceil(count / limit) };
     }
 
-    // UPDATE APPOINTMENT: Actualizar una cita (admin) - usa Edge Functions para bypass RLS
+// UPDATE APPOINTMENT: Actualizar una cita (admin) - usa Edge Function para bypass RLS
     static async updateAppointment(appointmentId, updates, adminId) {
-        const { data: oldData } = await supabase
-            .from("appointments")
-            .select("*")
-            .eq("id", appointmentId)
-            .single();
-
-        const functionName = updates.status === "confirmed" ? "confirm-appointment" : "cancel-appointment";
+        const functionName = "update-appointment";
         const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
             },
-            body: JSON.stringify({ appointmentId, adminId }),
+            body: JSON.stringify({ appointmentId, adminId, updates }),
         });
 
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "Error actualizando cita");
 
-        const newData = result.appointment;
-
-        if (adminId) {
-            await this.logAction({
-                userId: adminId,
-                action: updates.status === "confirmed" ? "CONFIRM_APPOINTMENT" : "CANCEL_APPOINTMENT",
-                entityType: "appointment",
-                entityId: appointmentId,
-                oldData,
-                newData,
-            });
-        }
-
-        return newData;
+        return result.appointment;
     }
 
     // DELETE APPOINTMENT: Eliminar una cita (admin) - usa Edge Function
     static async deleteAppointment(appointmentId, adminId) {
-        const { data: oldData } = await supabase
-            .from("appointments")
-            .select("*")
-            .eq("id", appointmentId)
-            .single();
-
         const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-appointment`, {
             method: "POST",
             headers: {
@@ -356,26 +331,11 @@ export class AdminRepository {
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "Error eliminando cita");
 
-        if (adminId) {
-            await this.logAction({
-                userId: adminId,
-                action: "DELETE_APPOINTMENT",
-                entityType: "appointment",
-                entityId: appointmentId,
-                oldData,
-                newData: null,
-            });
-        }
-
         return true;
     }
 
     // DELETE ALL APPOINTMENTS: Eliminar todo el historial de citas (admin) - usa Edge Function
     static async deleteAllAppointments(adminId, dependencyId = null) {
-        let query = supabase.from("appointments").select("*");
-        if (dependencyId) query = query.eq("dependency_id", dependencyId);
-        const { data: oldData } = await query;
-
         const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-all-appointments`, {
             method: "POST",
             headers: {
@@ -388,47 +348,24 @@ export class AdminRepository {
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "Error eliminando historial");
 
-        if (adminId) {
-            await this.logAction({
-                userId: adminId,
-                action: "DELETE_ALL_APPOINTMENTS",
-                entityType: "appointment",
-                entityId: dependencyId ? `dependency_${dependencyId}` : "all",
-                oldData: { count: oldData?.length || 0 },
-                newData: null,
-            });
-        }
-
         return { deleted: result.deleted };
     }
 
-    // REASSIGN APPOINTMENT: Reasignar profesional a una cita
+    // REASSIGN APPOINTMENT: Reasignar profesional a una cita - usa Edge Function para bypass RLS
     static async reassignAppointment(appointmentId, newProfessionalId, adminId) {
-        const { data: oldData } = await supabase
-            .from("appointments")
-            .select("*, professional:profiles!professional_id(full_name)")
-            .eq("id", appointmentId)
-            .single();
-
-        const { data: newData, error } = await supabase
-            .from("appointments")
-            .update({ professional_id: newProfessionalId, updated_at: new Date() })
-            .eq("id", appointmentId)
-            .select()
-            .single();
-
-        if (error) throw error;
-
-        await this.logAction({
-            userId: adminId,
-            action: "REASSIGN_APPOINTMENT",
-            entityType: "appointment",
-            entityId: appointmentId,
-            oldData,
-            newData,
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/reassign-appointment`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            },
+            body: JSON.stringify({ appointmentId, adminId, newProfessionalId }),
         });
 
-        return newData;
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Error reasignando cita");
+
+        return result.appointment;
     }
 
     // DEPENDENCY STATS: Estadísticas de cada dependencia

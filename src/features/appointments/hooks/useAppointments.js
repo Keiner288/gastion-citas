@@ -179,8 +179,8 @@ export function useAppointments() {
       if (isAprendiz()) {
         const pendingCount = await AppointmentRepository.countPending(user.id);
         if (pendingCount >= 2) {
-          throw new Error(
-            "Solo puedes tener 2 citas pendientes. Espera a que se confirme o cancela una.",
+throw new Error(
+            "Ya tienes 2 citas pendientes. Espera a que se atienda alguna.",
           );
         }
       }
@@ -287,7 +287,7 @@ export function useAppointments() {
     return updateStatus(appointmentId, "cancelled");
   };
 
-  // DELETE: Eliminar una cita permanentemente
+// DELETE: Eliminar una cita permanentemente
   const deleteAppointment = async (appointmentId) => {
     setStatus(STATUS.UPDATING);
 
@@ -340,7 +340,7 @@ export function useAppointments() {
     }
   };
 
-  return {
+return {
     appointments,
     status,
     error,

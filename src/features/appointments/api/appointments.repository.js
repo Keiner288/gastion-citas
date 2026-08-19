@@ -62,13 +62,13 @@ export class AppointmentRepository {
       .from("appointments")
       .update(updates)
       .eq("id", id)
-      .select();
+      .select("*");
 
     if (error) throw new Error(error.message);
     return data;
   }
 
-  // TAKE APPOINTMENT: Profesional se auto-asigna una cita (usa Edge Function para bypass RLS)
+  // TAKE APPOINTMENT: Profesional se auto-asigna una cita
   static async takeAppointment(appointmentId, professionalId) {
     const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/take-appointment`, {
       method: "POST",
@@ -123,7 +123,7 @@ export class AppointmentRepository {
     return count;
   }
 
-  // COUNT PENDING: Contar citas pendientes de un usuario
+  // COUNT PENDING: Contar citas pendientes de un usuario (límite de 2)
   static async countPending(userId) {
     const { count, error } = await supabase
       .from("appointments")

@@ -1,7 +1,7 @@
-"""
-Test user utilities for auth testing
-Solves issues with invalid credentials for test users
-"""
+/**
+ * Test user utilities for auth testing
+ * Solves issues with invalid credentials for test users
+ */
 
 import { supabase } from '../lib/supabase';
 import { supabaseMock } from '../mocks/supabase.mock';

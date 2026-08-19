@@ -3,7 +3,7 @@ import { useAdmin } from "../hooks/useAdmin";
 import { supabase } from "../../../lib/supabase";
 import {
     Search, Calendar, Clock, CheckCircle, AlertCircle,
-    XCircle, Ban, X, User, RefreshCw, Trash2,
+    XCircle, Ban, X, User, RefreshCw, Trash2, Edit, ShieldAlert,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
@@ -28,7 +28,7 @@ const STATUS_CONFIG = {
 export function AppointmentSupervision() {
     const {
         allAppointments, appointmentPagination, loading,
-        fetchAllAppointments, reassignAppointment, cancelAppointment, confirmAppointment, deleteAppointment, deleteAllAppointments,
+        fetchAllAppointments, reassignAppointment, cancelAppointment, confirmAppointment, deleteAppointment, updateAppointment,
     } = useAdmin();
     const [dependencies, setDependencies] = useState([]);
     const [professionals, setProfessionals] = useState([]);
@@ -45,6 +45,9 @@ export function AppointmentSupervision() {
     const [reassignModal, setReassignModal] = useState(null);
     const [reassignProfessionals, setReassignProfessionals] = useState([]);
     const [selectedProfessional, setSelectedProfessional] = useState("");
+    const [editModal, setEditModal] = useState(null);
+    const [editForm, setEditForm] = useState({});
+    const [editProfessionals, setEditProfessionals] = useState([]);
 
     useEffect(() => {
         supabase.from("dependencies").select("*").then(({ data }) => setDependencies(data || []));
@@ -108,20 +111,44 @@ export function AppointmentSupervision() {
         }
     };
 
-    const clearFilters = () => {
-        setFilters({ dependencyId: "", professionalId: "", status: "", search: "", dateFrom: "", dateTo: "", page: 1 });
+    const openEditModal = async (apt) => {
+        if (!apt.dependency_id) return;
+        const profs = await supabase
+            .from("profiles")
+            .select("id, full_name")
+            .eq("dependency_id", apt.dependency_id)
+            .in("role_id", [3, 4, 5])
+            .then(({ data }) => data || []);
+        setEditProfessionals(profs);
+        setEditForm({
+            scheduled_date: apt.scheduled_date,
+            scheduled_time: apt.scheduled_time,
+            professional_id: apt.professional_id || "",
+            reason: apt.reason || "",
+            notes: apt.notes || "",
+        });
+        setEditModal(apt);
     };
 
-    const handleDeleteAll = async () => {
-        const depId = filters.dependencyId || null;
-        const msg = depId
-            ? "¿Eliminar TODAS las citas de esta dependencia? Esta acción no se puede deshacer."
-            : "¿Eliminar TODAS las citas del historial? Esta acción no se puede deshacer.";
-        if (!window.confirm(msg)) return;
-        const result = await deleteAllAppointments(depId);
-        if (result.success) {
+    const handleEdit = async () => {
+        if (!editModal) return;
+        const result = await updateAppointment(editModal.id, editForm);
+        if (result) {
+            setEditModal(null);
             fetchAllAppointments(filters);
         }
+    };
+
+    const handleBlock = async (apt) => {
+        if (!window.confirm(`¿Bloquear la cita de ${apt.profiles?.full_name || "este aprendiz"}? El estado cambiará a "No asistió".`)) return;
+        const result = await updateAppointment(apt.id, { status: "no_show" });
+        if (result) {
+            fetchAllAppointments(filters);
+        }
+    };
+
+    const clearFilters = () => {
+        setFilters({ dependencyId: "", professionalId: "", status: "", search: "", dateFrom: "", dateTo: "", page: 1 });
     };
 
     const hasActiveFilters = Object.values(filters).some((v) => v !== "" && v !== 1);
@@ -134,14 +161,6 @@ export function AppointmentSupervision() {
                     <span style={{ color: "#6b7280", fontSize: "0.85rem" }}>
                         Total: {appointmentPagination.total} citas
                     </span>
-                    <button
-                        className="btn-primary"
-                        onClick={handleDeleteAll}
-                        style={{ background: "#ef4444", display: "flex", alignItems: "center", gap: "0.35rem" }}
-                    >
-                        <Trash2 size={16} />
-                        <span>Eliminar Historial</span>
-                    </button>
                 </div>
             </header>
 
@@ -236,6 +255,9 @@ export function AppointmentSupervision() {
                                                 <button className="btn-icon" onClick={() => setDetailModal(apt)} title="Ver detalles">
                                                     <Search size={14} />
                                                 </button>
+                                                <button className="btn-icon" onClick={() => openEditModal(apt)} title="Editar">
+                                                    <Edit size={14} />
+                                                </button>
                                                 {apt.status === "pending" && (
                                                     <>
                                                         <button className="btn-icon" onClick={() => handleConfirm(apt)} title="Confirmar" style={{ color: "#22c55e" }}>
@@ -247,9 +269,25 @@ export function AppointmentSupervision() {
                                                         <button className="btn-icon" onClick={() => handleCancel(apt)} title="Cancelar" style={{ color: "#ef4444" }}>
                                                             <Ban size={14} />
                                                         </button>
+                                                        <button className="btn-icon" onClick={() => handleBlock(apt)} title="Bloquear (No asistió)" style={{ color: "#ef4444" }}>
+                                                            <ShieldAlert size={14} />
+                                                        </button>
                                                     </>
                                                 )}
-                                                {apt.status !== "pending" && apt.status !== "cancelled" && apt.status !== "completed" && (
+                                                {apt.status === "confirmed" && (
+                                                    <>
+                                                        <button className="btn-icon" onClick={() => openReassignModal(apt)} title="Reasignar">
+                                                            <User size={14} />
+                                                        </button>
+                                                        <button className="btn-icon" onClick={() => handleCancel(apt)} title="Cancelar" style={{ color: "#ef4444" }}>
+                                                            <Ban size={14} />
+                                                        </button>
+                                                        <button className="btn-icon" onClick={() => handleBlock(apt)} title="Bloquear (No asistió)" style={{ color: "#ef4444" }}>
+                                                            <ShieldAlert size={14} />
+                                                        </button>
+                                                    </>
+                                                )}
+                                                {apt.status !== "pending" && apt.status !== "confirmed" && apt.status !== "cancelled" && apt.status !== "completed" && (
                                                     <>
                                                         <button className="btn-icon" onClick={() => openReassignModal(apt)} title="Reasignar">
                                                             <User size={14} />
@@ -372,6 +410,55 @@ export function AppointmentSupervision() {
                             <button className="btn-primary" onClick={handleReassign} disabled={!selectedProfessional}>
                                 Reasignar
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Modal */}
+            {editModal && (
+                <div className="modal-overlay" onClick={() => setEditModal(null)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 500 }}>
+                        <div className="modal-header">
+                            <h3>Editar Cita</h3>
+                            <button className="btn-icon" onClick={() => setEditModal(null)}><X size={20} /></button>
+                        </div>
+                        <p style={{ fontSize: "0.85rem", color: "#6b7280", marginBottom: "1rem" }}>
+                            Cita de <strong>{editModal.profiles?.full_name}</strong> en {editModal.dependencies?.name}
+                        </p>
+                        <div className="field">
+                            <label>Fecha</label>
+                            <input type="date" value={editForm.scheduled_date} onChange={(e) => setEditForm({...editForm, scheduled_date: e.target.value})} className="field__input" />
+                        </div>
+                        <div className="field">
+                            <label>Hora</label>
+                            <select value={editForm.scheduled_time} onChange={(e) => setEditForm({...editForm, scheduled_time: e.target.value})} className="field__input">
+                                {Array.from({ length: 12 }, (_, i) => {
+                                    const hour = (8 + i).toString().padStart(2, "0");
+                                    return <option key={hour} value={`${hour}:00`}>{hour}:00</option>;
+                                })}
+                            </select>
+                        </div>
+                        <div className="field">
+                            <label>Profesional</label>
+                            <select value={editForm.professional_id} onChange={(e) => setEditForm({...editForm, professional_id: e.target.value})} className="field__input">
+                                <option value="">Sin asignar</option>
+                                {editProfessionals.map((p) => (
+                                    <option key={p.id} value={p.id}>{p.full_name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="field">
+                            <label>Motivo</label>
+                            <textarea value={editForm.reason} onChange={(e) => setEditForm({...editForm, reason: e.target.value})} rows={3} className="field__input" placeholder="Motivo de la consulta" />
+                        </div>
+                        <div className="field">
+                            <label>Notas</label>
+                            <textarea value={editForm.notes} onChange={(e) => setEditForm({...editForm, notes: e.target.value})} rows={3} className="field__input" placeholder="Notas de la atención" />
+                        </div>
+                        <div className="modal-actions">
+                            <button className="btn-secondary" onClick={() => setEditModal(null)}>Cancelar</button>
+                            <button className="btn-primary" onClick={handleEdit}>Guardar cambios</button>
                         </div>
                     </div>
                 </div>

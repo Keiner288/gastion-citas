@@ -57,7 +57,7 @@ function LoadingState() {
 }
 
 export default function AprendizDashboard() {
-  const { appointments, createAppointment, fetchAppointmentsSilent, cancelAppointment, isLoading, isCreating } =
+  const { appointments, createAppointment, fetchAppointmentsSilent, cancelAppointment, updateStatus, isLoading, isCreating } =
     useAppointments();
   const { profile } = useAuth();
   const [showForm, setShowForm] = useState(false);
@@ -183,12 +183,10 @@ export default function AprendizDashboard() {
                       new Date()
                     )} días`}
                 </span>
-                {nextAppointment.status === "pending" && (
-                  <div style={{ display: "flex", gap: "var(--space-sm)", justifyContent: "flex-end" }}>
-                    <button onClick={() => handleCancel(nextAppointment.id)} className="btn btn-danger btn--sm">
-                      Cancelar
-                    </button>
-                  </div>
+{nextAppointment.status === "pending" && (
+                  <button onClick={() => handleCancel(nextAppointment.id)} className="btn btn-danger btn--sm">
+                    Cancelar
+                  </button>
                 )}
               </div>
             </div>
@@ -258,8 +256,8 @@ export default function AprendizDashboard() {
                 <p style={{ color: "var(--text-muted)" }}>No hay citas registradas</p>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-sm)" }}>
-                  {appointments.slice(0, 5).map((apt) => (
-                    <AppointmentCard
+{appointments.slice(0, 5).map((apt) => (
+<AppointmentCard
                       key={apt.id}
                       appointment={apt}
                       isAprendiz={true}

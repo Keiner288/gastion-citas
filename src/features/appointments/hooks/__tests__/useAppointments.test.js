@@ -213,18 +213,30 @@ describe("useAppointments", () => {
       expect(res.error).toContain("ocupado");
     });
 
+<<<<<<< HEAD
     it("rechaza cita si aprendiz tiene 2 citas pendientes", async () => {
+=======
+    it("rechaza cita si aprendiz tiene 5 citas pendientes", async () => {
+>>>>>>> 450985fd63f5ab61968b187f712e1d1a447771be
       useAuth.mockReturnValue({
         user: mockUser,
         profile: mockProfileAprendiz,
         isAprendiz: () => true,
       });
 
+<<<<<<< HEAD
       // 1st call: countPending → returns 2
       const countPendingChain = {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
         then: vi.fn((resolve) => resolve({ count: 2, error: null })),
+=======
+      // 1st call: countPending → returns 5
+      const countPendingChain = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        then: vi.fn((resolve) => resolve({ count: 5, error: null })),
+>>>>>>> 450985fd63f5ab61968b187f712e1d1a447771be
       };
 
       supabaseMock.from.mockReturnValueOnce(countPendingChain);
@@ -242,7 +254,11 @@ describe("useAppointments", () => {
       });
 
       expect(res.success).toBe(false);
+<<<<<<< HEAD
       expect(res.error).toContain("2 citas pendientes");
+=======
+      expect(res.error).toContain("5 citas pendientes");
+>>>>>>> 450985fd63f5ab61968b187f712e1d1a447771be
     });
   });
 
@@ -271,6 +287,7 @@ describe("useAppointments", () => {
         then: vi.fn((resolve) => resolve({ data: mockAppointments, error: null })),
       };
 
+<<<<<<< HEAD
       // Update chain for cancellation
       const updateChain = {
         update: vi.fn().mockReturnThis(),
@@ -295,6 +312,9 @@ describe("useAppointments", () => {
         .mockReturnValueOnce(fetchChain)      // initial fetch
         .mockReturnValueOnce(updateChain)     // update (cancel)
         .mockReturnValueOnce(refetchChain);   // refetch after update
+=======
+      supabaseMock.from.mockReturnValue(fetchChain);
+>>>>>>> 450985fd63f5ab61968b187f712e1d1a447771be
 
       const { result } = renderHook(() => useAppointments());
 
@@ -303,6 +323,19 @@ describe("useAppointments", () => {
         await result.current.fetchAppointments();
       });
 
+<<<<<<< HEAD
+=======
+      // Now mock the update call for cancellation
+      const updateChain = {
+        update: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        select: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: { ...mockAppointments[0], status: "cancelled" }, error: null }),
+      };
+
+      supabaseMock.from.mockReturnValue(updateChain);
+
+>>>>>>> 450985fd63f5ab61968b187f712e1d1a447771be
       let res;
       await act(async () => {
         res = await result.current.cancelAppointment("apt-1");

@@ -14,7 +14,7 @@ const ATTENTION_TYPES = [
   { value: "control", label: "Control" },
   { value: "urgency", label: "Urgencia" },
   { value: "routine", label: "Control Rutinario" },
-  { value: "vaccination", label: "Vacunación" },
+  { value: "vaccination", label: "Vacunaci\u00f3n" },
 ];
 
 const FILTERS = [
@@ -105,8 +105,8 @@ export default function NursingDashboard() {
         <div className="dashboard-container">
           <header className="dashboard-header">
             <div>
-              <h1>{profile?.dependencies?.name || "Enfermería"}</h1>
-              <p>{profile?.full_name || "Profesional"} — Panel de atención de enfermería</p>
+              <h1>{profile?.dependencies?.name || "Enfermer\u00eda"}</h1>
+              <p>{profile?.full_name || "Profesional"} \u2014 Panel de atenci\u00f3n de enfermer\u00eda</p>
             </div>
             <div className="header-actions">
               <UserAvatar name={profile?.full_name} onClick={() => setSidebarOpen(true)} />
@@ -159,7 +159,7 @@ export default function NursingDashboard() {
           <div className="card card--elevated card--span-2"><Skeleton variant="card" height="200px" count={3} /></div>
         ) : filteredAppointments.length === 0 ? (
           <div className="card card--elevated card--span-2">
-            <EmptyState icon={Calendar} title="No hay citas registradas" description="Pendientes de asignación" />
+            <EmptyState icon={Calendar} title="No hay citas registradas" description="Pendientes de asignaci\u00f3n" />
           </div>
         ) : (
           filteredAppointments.map((apt) => (
@@ -179,8 +179,8 @@ export default function NursingDashboard() {
               {apt.profiles?.full_name && (
                 <div className="card__body" style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", marginBottom: "var(--space-sm)", flexWrap: "wrap" }}>
                   <User size={14} aria-hidden="true" /><span style={{ fontWeight: 600 }}>{apt.profiles.full_name}</span>
-                  {apt.profiles.document_number && <span style={{ color: "var(--text-muted)", fontSize: "var(--text-small)" }}>— Doc: {apt.profiles.document_number}</span>}
-                  {apt.professional_id === profile.id && <span className="badge badge--sm" style={{ background: "var(--color-success)", color: "white" }}><CheckCircle size={10} /> Mía</span>}
+                  {apt.profiles.document_number && <span style={{ color: "var(--text-muted)", fontSize: "var(--text-small)" }}> \u2014 Doc: {apt.profiles.document_number}</span>}
+                  {apt.professional_id === profile.id && <span className="badge badge--sm" style={{ background: "var(--color-success)", color: "white" }}><CheckCircle size={10} /> M\u00eda</span>}
                   {!apt.professional_id && <span className="badge badge--sm" style={{ background: "var(--color-warning)", color: "white" }}>Sin asignar</span>}
                 </div>
               )}
@@ -201,7 +201,7 @@ export default function NursingDashboard() {
                       {parsed.attention_type && <span className="badge badge--sm" style={{ marginRight: "var(--space-xs)" }}><Stethoscope size={10} /> {ATTENTION_TYPES.find(t => t.value === parsed.attention_type)?.label || parsed.attention_type}</span>}
                       {(parsed.temperature || parsed.blood_pressure || parsed.heart_rate || parsed.weight) && (
                         <div style={{ display: "flex", gap: "var(--space-sm)", flexWrap: "wrap", marginTop: "var(--space-xs)" }}>
-                          {parsed.temperature && <span className="badge badge--sm"><Thermometer size={10} /> {parsed.temperature}°C</span>}
+                          {parsed.temperature && <span className="badge badge--sm"><Thermometer size={10} /> {parsed.temperature}\u00b0C</span>}
                           {parsed.blood_pressure && <span className="badge badge--sm"><Activity size={10} /> {parsed.blood_pressure}</span>}
                           {parsed.heart_rate && <span className="badge badge--sm"><Heart size={10} /> {parsed.heart_rate} lpm</span>}
                           {parsed.weight && <span className="badge badge--sm">Peso: {parsed.weight} kg</span>}
@@ -225,7 +225,7 @@ export default function NursingDashboard() {
                   {apt.professional_id === profile.id ? (
                     <>
                       <button onClick={() => handleConfirm(apt.id)} className="btn btn-success" style={{ flex: 1 }}><CheckCircle size={16} aria-hidden="true" /> Confirmar</button>
-                      <button onClick={() => handleShow(apt.id)} className="btn btn-secondary" style={{ flex: 1 }}><XCircle size={16} aria-hidden="true" /> No Asistió</button>
+                      <button onClick={() => handleShow(apt.id)} className="btn btn-secondary" style={{ flex: 1 }}><XCircle size={16} aria-hidden="true" /> No Asisti\u00f3</button>
                     </>
                   ) : (
                     <button onClick={() => handleTake(apt.id)} className="btn btn-primary" style={{ flex: 1, width: "100%" }}><UserPlus size={16} aria-hidden="true" /> Tomar cita</button>
@@ -238,23 +238,23 @@ export default function NursingDashboard() {
                   {apt.professional_id === profile.id ? (
                     <>
                       <div className="field field--static">
-                        <label className="field__label"><Stethoscope size={12} aria-hidden="true" /> Tipo de Atención</label>
+                        <label className="field__label"><Stethoscope size={12} aria-hidden="true" /> Tipo de Atenci\u00f3n</label>
                         <select className="field__input" value={attentionType} onChange={(e) => setAttentionType(e.target.value)}>
                           {ATTENTION_TYPES.map((t) => (<option key={t.value} value={t.value}>{t.label}</option>))}
                         </select>
                       </div>
                       <div className="field-row field-row--2">
-                        <div className="field field--static"><label className="field__label"><Thermometer size={12} /> Temp (°C)</label><input className="field__input" type="text" placeholder="36.5" value={vitals.temperature} onChange={(e) => setVitals({ ...vitals, temperature: e.target.value })} /></div>
-                        <div className="field field--static"><label className="field__label"><Activity size={12} /> Presión Arterial</label><input className="field__input" type="text" placeholder="120/80" value={vitals.blood_pressure} onChange={(e) => setVitals({ ...vitals, blood_pressure: e.target.value })} /></div>
-                        <div className="field field--static"><label className="field__label"><Heart size={12} /> Frec. Cardíaca</label><input className="field__input" type="text" placeholder="72 lpm" value={vitals.heart_rate} onChange={(e) => setVitals({ ...vitals, heart_rate: e.target.value })} /></div>
+                        <div className="field field--static"><label className="field__label"><Thermometer size={12} /> Temp (\u00b0C)</label><input className="field__input" type="text" placeholder="36.5" value={vitals.temperature} onChange={(e) => setVitals({ ...vitals, temperature: e.target.value })} /></div>
+                        <div className="field field--static"><label className="field__label"><Activity size={12} /> Presi\u00f3n Arterial</label><input className="field__input" type="text" placeholder="120/80" value={vitals.blood_pressure} onChange={(e) => setVitals({ ...vitals, blood_pressure: e.target.value })} /></div>
+                        <div className="field field--static"><label className="field__label"><Heart size={12} /> Frec. Card\u00edaca</label><input className="field__input" type="text" placeholder="72 lpm" value={vitals.heart_rate} onChange={(e) => setVitals({ ...vitals, heart_rate: e.target.value })} /></div>
                         <div className="field field--static"><label className="field__label">Peso (kg)</label><input className="field__input" type="text" placeholder="70" value={vitals.weight} onChange={(e) => setVitals({ ...vitals, weight: e.target.value })} /></div>
                       </div>
-                      <textarea className="field__input" placeholder="Observaciones de enfermería (obligatorio)" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} style={{ minHeight: "60px" }} />
-                      <button onClick={() => handleComplete(apt.id)} className="btn btn-primary btn--block" disabled={!notes.trim()}><CheckCircle size={16} aria-hidden="true" /> Completar Atención</button>
+                      <textarea className="field__input" placeholder="Observaciones de enfermer\u00eda (obligatorio)" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} style={{ minHeight: "60px" }} />
+                      <button onClick={() => handleComplete(apt.id)} className="btn btn-primary btn--block" disabled={!notes.trim()}><CheckCircle size={16} aria-hidden="true" /> Completar Atenci\u00f3n</button>
                     </>
                   ) : (
                     <p style={{ color: "var(--text-muted)", fontSize: "var(--text-small)", textAlign: "center", padding: "var(--space-sm)" }}>
-                      Esta cita está asignada a {apt.professional?.full_name || "otro profesional"}
+                      Esta cita est\u00e1 asignada a {apt.professional?.full_name || "otro profesional"}
                     </p>
                   )}
                 </div>
@@ -267,7 +267,7 @@ export default function NursingDashboard() {
       {historyModal && (
         <div className="modal-overlay" onClick={() => setHistoryModal(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "600px" }}>
-            <h2><History size={20} aria-hidden="true" /> Historial de Atención</h2>
+            <h2><History size={20} aria-hidden="true" /> Historial de Atenci\u00f3n</h2>
             {apprenticeHistory.length > 0 ? (
               <div className="history-timeline">
                 {apprenticeHistory.map((apt) => (

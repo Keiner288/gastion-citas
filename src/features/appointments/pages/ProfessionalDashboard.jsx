@@ -53,7 +53,7 @@ export function ProfessionalDashboard() {
     return appointments.filter((apt) => apt.status === filter);
   }, [appointments, filter]);
 
-const handleConfirm = (id) => updateStatus(id, "confirmed");
+  const handleConfirm = (id) => updateStatus(id, "confirmed");
   const handleComplete = (id) => { updateStatus(id, "completed", notes || "Atención completada"); setNotes(""); };
   const handleShow = (id) => updateStatus(id, "no_show");
   const handleTake = async (id) => { await takeAppointment(id); };

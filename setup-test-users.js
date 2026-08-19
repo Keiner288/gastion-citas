@@ -25,9 +25,9 @@ async function setupTestUsers() {
       console.log('📝 INSERTA ESTOS DOS REGISTROS:');
       console.log('');
       console.log('1. PARA USUARIO DE PRUEBA (sin verificación):');
-      console.log('   - id: user-test-no-verify');
+console.log('   - id: user-test-no-verify');
       console.log('   - full_name: Test No Verify');
-      console and log.add
+      console.log('   - role_id: 6');
       // Lengthy console log truncated for readability
     }
     
